@@ -127,6 +127,7 @@ class ChessState extends State<Chess> {
       lastPosition = '';
       activeItem = null;
     });
+
     String position = gamer.lastMove;
     if (position.isNotEmpty) {
       logger.info('last move $position');
@@ -448,63 +449,6 @@ class ChessState extends State<Chess> {
       );
     }
 
-    List<Widget> widgets = [const Board()];
-
-    List<Widget> layer0 = [];
-    if (dieFlash != null) {
-      layer0.add(
-        Align(
-          alignment: gamer.skin.getAlign(dieFlash!.position),
-          child: Piece(item: dieFlash!, isActive: false, isAblePoint: false),
-        ),
-      );
-    }
-    if (lastPosition.isNotEmpty) {
-      ChessItem emptyItem =
-          ChessItem('0', position: ChessPos.fromCode(lastPosition));
-      layer0.add(
-        Align(
-          alignment: gamer.skin.getAlign(emptyItem.position),
-          child: MarkComponent(
-            size: gamer.skin.size * gamer.scale,
-          ),
-        ),
-      );
-    }
-    widgets.add(
-      Stack(
-        alignment: Alignment.center,
-        fit: StackFit.expand,
-        children: layer0,
-      ),
-    );
-
-    widgets.add(
-      ChessPieces(
-        items: items,
-        activeItem: activeItem,
-      ),
-    );
-
-    List<Widget> layer2 = [];
-    for (var element in movePoints) {
-      ChessItem emptyItem =
-          ChessItem('0', position: ChessPos.fromCode(element));
-      layer2.add(
-        Align(
-          alignment: gamer.skin.getAlign(emptyItem.position),
-          child: PointComponent(size: gamer.skin.size * gamer.scale),
-        ),
-      );
-    }
-    widgets.add(
-      Stack(
-        alignment: Alignment.center,
-        fit: StackFit.expand,
-        children: layer2,
-      ),
-    );
-
     return GestureDetector(
       onTapUp: (detail) {
         if (gamer.isLock) return;
@@ -518,7 +462,47 @@ class ChessState extends State<Chess> {
         child: Stack(
           alignment: Alignment.center,
           fit: StackFit.expand,
-          children: widgets,
+          children: [
+            const Board(),
+            Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                if (dieFlash != null)
+                  Align(
+                    alignment: gamer.skin.getAlign(dieFlash!.position),
+                    child: Piece(
+                      item: dieFlash!,
+                      isActive: false,
+                      isAblePoint: false,
+                    ),
+                  ),
+                if (lastPosition.isNotEmpty)
+                  Align(
+                    alignment:
+                        gamer.skin.getAlign(ChessPos.fromCode(lastPosition)),
+                    child: MarkComponent(
+                      size: gamer.skin.size * gamer.scale,
+                    ),
+                  ),
+              ],
+            ),
+            ChessPieces(
+              items: items,
+              activeItem: activeItem,
+            ),
+            Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                for (var element in movePoints)
+                  Align(
+                    alignment: gamer.skin.getAlign(ChessPos.fromCode(element)),
+                    child: PointComponent(size: gamer.skin.size * gamer.scale),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

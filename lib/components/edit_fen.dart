@@ -43,6 +43,7 @@ class EditFenState extends State<EditFen> {
   }
 
   void editOK() {
+    logger.info('edited fen: ${manual.currentFen.fen}');
     Navigator.of(context).pop<String>(manual.currentFen.fen);
   }
 

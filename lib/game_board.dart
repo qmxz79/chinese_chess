@@ -274,18 +274,17 @@ class _GameBoardState extends State<GameBoard> {
     );
   }
 
-  void editFen() {
-    Navigator.of(context).push<String>(
+  void editFen() async {
+    final fenStr = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (BuildContext context) {
           return GameWrapper(child: EditFen(fen: gamer.fenStr));
         },
       ),
-    ).then((fenStr) {
-      if (fenStr != null && fenStr.isNotEmpty) {
-        gamer.newGame(fen: fenStr);
-      }
-    });
+    );
+    if (fenStr != null && fenStr.isNotEmpty) {
+      gamer.newGame(fen: fenStr);
+    }
   }
 
   Future<void> applyFen() async {

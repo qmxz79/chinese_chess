@@ -49,7 +49,6 @@ class _ChessPiecesState extends State<ChessPieces> {
 
   @override
   Widget build(BuildContext context) {
-    initGamer();
     return Stack(
       alignment: Alignment.center,
       fit: StackFit.expand,

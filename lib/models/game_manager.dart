@@ -18,7 +18,7 @@ class GameManager {
   double scale = 1;
 
   // 当前对局
-  late ChessManual manual = ChessManual();
+  ChessManual manual = ChessManual();
 
   // 算法引擎
   Engine engine = Engine();
@@ -280,6 +280,7 @@ class GameManager {
       content = pgn;
     }
     manual = ChessManual.load(content);
+
     hands[0].title = manual.red;
     hands[1].title = manual.black;
 
