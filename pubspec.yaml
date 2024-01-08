@@ -12,8 +12,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  cchess: 0.0.5
-  cchess_engine: ^0.0.1
+  cchess: ^0.0.7
+  cchess_engine: ^0.0.4
   engine:
     path: plugins/engine
   
