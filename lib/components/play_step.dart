@@ -45,7 +45,7 @@ class PlayStepState extends State<PlayStep> {
         currentStep = gamer.currentStep - 1;
         if (steps.isNotEmpty) {
           logger.info('$currentStep -> ${steps.length}');
-          steps.removeRange(currentStep + 2, steps.length);
+          steps.removeRange(currentStep + 2, steps.length - 1);
         }
       });
     } else if (message == 'step') {
