@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:cchess/cchess.dart';
 import 'package:engine/engine.dart';
-import 'package:fast_gbk/fast_gbk.dart';
+import 'package:charset/charset.dart';
 
 import '../driver/player_driver.dart';
 import '../global.dart';

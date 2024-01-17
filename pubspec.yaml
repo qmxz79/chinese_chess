@@ -26,7 +26,7 @@ dependencies:
   #filesystem_picker: ^2.0.1
   #file_selector: ^0.8.2
   shirne_dialog:  ^4.5.0
-  fast_gbk: ^1.0.0-rc
+  charset: ^2.0.1
   universal_html: ^2.0.8
   shared_preferences: ^2.2.0
   flutter_native_splash: ^2.2.7

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:fast_gbk/fast_gbk.dart';
+import 'package:charset/charset.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shirne_dialog/shirne_dialog.dart';
 import 'package:flutter/foundation.dart';
