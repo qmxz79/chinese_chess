@@ -82,10 +82,6 @@ class GameManager {
   }
 
   Future<bool> init() async {
-    setting = await GameSetting.getInstance();
-    try {
-      await engine.init();
-    } catch (_) {}
     rule = ChessRule(manual.currentFen);
 
     hands.add(Player('r', this, title: manual.red));
@@ -93,10 +89,16 @@ class GameManager {
     curHand = 0;
     // map = ChessMap.fromFen(ChessManual.startFen);
 
+    setting = await GameSetting.getInstance();
+
     skin = ChessSkin("woods", this);
     skin.readyNotifier.addListener(() {
       add(GameLoadEvent(0));
     });
+
+    try {
+      await engine.init(setting.info);
+    } catch (_) {}
 
     listener = engine.listen(parseMessage);
 
@@ -518,7 +520,7 @@ class GameManager {
   }
 
   Future<bool> startEngine() {
-    return engine.init();
+    return engine.init(setting.info);
   }
 
   void requestHelp() async {

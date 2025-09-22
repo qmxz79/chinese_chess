@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:charset/charset.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -159,43 +159,60 @@ abstract class EngineInterface extends PlatformInterface {
   Completer<bool>? quitCompleter;
 
   void _onMessage(List<int> event) {
-    final events = ascii.decode(event).trim().split(RegExp(r'[\r\n]+'));
-    for (var estr in events) {
-      if (estr.trim().isEmpty) continue;
-      logger.fine('engine($hashCode) message: $estr');
-      final message = EngineMessage.parse(estr.trim());
-      if (message.type == MessageType.uciok) {
-        state = EngineState.init;
-        if (okCompleter != null && !okCompleter!.isCompleted) {
-          okCompleter?.complete(true);
-        }
-      } else if (message.type == MessageType.readyok) {
-        state = EngineState.ready;
-        if (readyCompleter != null && !readyCompleter!.isCompleted) {
-          readyCompleter?.complete(true);
-        }
-      } else if (message.type == MessageType.bestmove) {
-        state = EngineState.idle;
-        if (moveCompleter != null && !moveCompleter!.isCompleted) {
-          moveCompleter?.complete(message.moves[0]);
-        }
-      } else if (message.type == MessageType.nobestmove) {
-        state = EngineState.idle;
-        moveCompleter = null;
-        if (stopCompleter != null && !stopCompleter!.isCompleted) {
-          stopCompleter?.complete(true);
-        }
-      } else if (message.type == MessageType.bye) {
-        state = EngineState.quit;
-        if (quitCompleter != null && !quitCompleter!.isCompleted) {
-          quitCompleter?.complete(true);
-        }
+    try {
+      final encoding = Charset.detect(event);
+      if (encoding == null) {
+        throw Exception('message decode error');
       }
-      engineMessage.add(message);
+      final events = encoding.decode(event).trim().split(RegExp(r'[\r\n]+'));
+      for (var estr in events) {
+        if (estr.trim().isEmpty) continue;
+        logger.fine('engine($hashCode) message: $estr');
+        final message = EngineMessage.parse(estr.trim());
+        if (message.type == MessageType.uciok) {
+          state = EngineState.init;
+          if (okCompleter != null && !okCompleter!.isCompleted) {
+            okCompleter?.complete(true);
+          }
+        } else if (message.type == MessageType.readyok) {
+          state = EngineState.ready;
+          if (readyCompleter != null && !readyCompleter!.isCompleted) {
+            readyCompleter?.complete(true);
+          }
+        } else if (message.type == MessageType.bestmove) {
+          state = EngineState.idle;
+          if (moveCompleter != null && !moveCompleter!.isCompleted) {
+            moveCompleter?.complete(message.moves[0]);
+          }
+        } else if (message.type == MessageType.nobestmove) {
+          state = EngineState.idle;
+          moveCompleter = null;
+          if (stopCompleter != null && !stopCompleter!.isCompleted) {
+            stopCompleter?.complete(true);
+          }
+        } else if (message.type == MessageType.bye) {
+          state = EngineState.quit;
+          if (quitCompleter != null && !quitCompleter!.isCompleted) {
+            quitCompleter?.complete(true);
+          }
+        }
+        engineMessage.add(message);
+      }
+    } catch (e) {
+      logger.warning(e);
+
+      _onError(e, event);
     }
   }
 
-  void _onError(err) {}
+  void _onError(err, [data]) {
+    engineMessage.add(EngineMessage(
+      type: MessageType.unknown,
+      origin: '$data',
+      message: '$err',
+    ));
+  }
+
   void _onDone() {}
 
   void sendCommand(String cmd) {

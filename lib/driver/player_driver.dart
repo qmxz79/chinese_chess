@@ -21,6 +21,9 @@ class PlayerAction {
 
   final PlayerActionType type;
   final String? move;
+
+  @override
+  String toString() => '${type.name} $move';
 }
 
 abstract class PlayerDriver {
