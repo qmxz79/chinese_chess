@@ -357,7 +357,10 @@ abstract class EngineInterface extends PlatformInterface {
       stopCompleter = Completer();
       sendCommand('stop');
     }
-    await stopCompleter!.future;
+    await stopCompleter!.future.timeout(
+      const Duration(milliseconds: 100),
+      onTimeout: () => true,
+    );
 
     state = EngineState.idle;
     return true;
