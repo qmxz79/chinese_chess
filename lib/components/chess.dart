@@ -89,11 +89,23 @@ class ChessState extends State<Chess> {
         (parts.length > 1 && parts[1].isNotEmpty) ? parts[1] : null;
     switch (parts[0]) {
       case 'checkMate':
-        //toast(context.l10n.check);
         showAction(ActionType.checkMate);
         break;
+      case 'check':
+        showAction(ActionType.checkMate);
+        break;
+      case 'kill':
+        showAction(ActionType.kill);
+        break;
       case 'eat':
-        showAction(ActionType.eat);
+        // 只保留吃子声音，不再弹出“吃”字提示
+        break;
+      case 'retract':
+        if (resultText == 'accepted') {
+          toast('悔棋成功', null, 2);
+        } else if (resultText == 'rejected') {
+          toast('悔棋被拒绝', null, 2);
+        }
         break;
       case ChessManual.resultFstLoose:
         alertResult(resultText ?? context.l10n.redLoose);
@@ -121,13 +133,17 @@ class ChessState extends State<Chess> {
       }
       return;
     }
+    // 新局时强制重置所有棋盘状态
     setState(() {
       items = gamer.manual.getChessItems();
       isLoading = false;
       lastPosition = '';
       activeItem = null;
+      dieFlash = null;
+      movePoints = [];
     });
 
+    // 仅在有历史走子时高亮最后一步
     String position = gamer.lastMove;
     if (position.isNotEmpty) {
       logger.info('last move $position');

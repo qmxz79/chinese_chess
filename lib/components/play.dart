@@ -35,7 +35,21 @@ class PlayPageState extends State<PlayPage> {
     logger.info('初始化游戏 $inited');
     if (inited) return;
     inited = true;
-    gamer.newGame(amyType: DriverType.robot);
+    // 根据模式设置双方driver
+    switch (widget.mode) {
+      case PlayMode.modeRobot:
+        // 默认红方玩家，黑方AI
+        gamer.newGame(amyType: DriverType.robot, hand1: 0);
+        break;
+      case PlayMode.modeFree:
+        // 双人对弈
+        gamer.newGame(amyType: DriverType.user, hand1: 0);
+        break;
+      case PlayMode.modeOnline:
+        // 预留，暂用双人
+        gamer.newGame(amyType: DriverType.user, hand1: 0);
+        break;
+    }
   }
 
   @override

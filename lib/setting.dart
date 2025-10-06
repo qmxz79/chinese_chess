@@ -63,60 +63,58 @@ class _SettingPageState extends State<SettingPage> {
                     children: [
                       ListTile(
                         title: const Text('AI类型'),
-                        trailing: CupertinoSegmentedControl(
-                          onValueChanged: (value) {
-                            if (value == null) return;
+                        trailing: DropdownButton<String>(
+                          value: Engine()
+                              .getSupportedEngines()
+                              .map((e) => e.name)
+                              .contains(setting!.info.name)
+                              ? setting!.info.name
+                              : builtInEngine.name,
+                          items: [
+                            builtInEngine.name,
+                            ...Engine().getSupportedEngines().map((e) => e.name),
+                          ]
+                              .map((name) => DropdownMenuItem(
+                                    value: name,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      child: Text(name),
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
                             setState(() {
-                              setting!.info = value as EngineInfo;
+                              final engine = Engine()
+                                  .getSupportedEngines()
+                                  .firstWhere(
+                                    (e) => e.name == v,
+                                    orElse: () => builtInEngine,
+                                  );
+                              setting!.info = engine;
                             });
-                          },
-                          groupValue: setting!.info,
-                          children: {
-                            builtInEngine: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              child: Text('内置引擎'),
-                            ),
-                            for (var engine in Engine().getSupportedEngines())
-                              engine: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                ),
-                                child: Text(engine.name),
-                              ),
                           },
                         ),
                       ),
                       ListTile(
                         title: const Text('AI级别'),
-                        trailing: CupertinoSegmentedControl(
-                          onValueChanged: (value) {
-                            if (value == null) return;
+                        trailing: DropdownButton<int>(
+                          value: [2, 3, 4, 5, 6].contains(setting!.engineLevel)
+                              ? setting!.engineLevel
+                              : 3,
+                          items: const [
+                            DropdownMenuItem(value: 2, child: Text('入门')),
+                            DropdownMenuItem(value: 3, child: Text('初级')),
+                            DropdownMenuItem(value: 4, child: Text('中级')),
+                            DropdownMenuItem(value: 5, child: Text('高级')),
+                            DropdownMenuItem(value: 6, child: Text('大师')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
                             setState(() {
-                              setting!.engineLevel = value as int;
+                              setting!.engineLevel = v;
                             });
-                          },
-                          groupValue: setting!.engineLevel,
-                          children: const {
-                            10: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              child: Text('初级'),
-                            ),
-                            11: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 11,
-                              ),
-                              child: Text('中级'),
-                            ),
-                            12: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Text('大师'),
-                            ),
                           },
                         ),
                       ),

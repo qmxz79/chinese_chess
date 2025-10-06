@@ -25,7 +25,8 @@ String assets(ActionType type) {
     case ActionType.checkMate:
       return 'assets/images/action_checkmate.png';
     case ActionType.kill:
-      return 'assets/images/action_kill.png';
+      // action_kill.png is not present in assets; fall back to checkmate image
+      return 'assets/images/action_checkmate.png';
   }
 }
 

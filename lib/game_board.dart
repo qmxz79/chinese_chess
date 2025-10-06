@@ -138,6 +138,43 @@ class _GameBoardState extends State<GameBoard> {
                     applyFen();
                   },
                 ),
+                // 在宽屏/桌面环境下显示悔棋按钮
+                IconButton(
+                  icon: const Icon(Icons.undo),
+                  tooltip: '悔棋',
+                  onPressed: () {
+                    gamer.requestRetract().then((accepted) {
+                      if (accepted) {
+                        MyDialog.toast('悔棋成功', iconType: IconType.success);
+                      } else {
+                        MyDialog.toast('悔棋被拒绝', iconType: IconType.error);
+                      }
+                    });
+                  },
+                ),
+                // 求和
+                IconButton(
+                  icon: const Icon(Icons.pan_tool),
+                  tooltip: '求和',
+                  onPressed: () {
+                    gamer.offerDraw().then((accepted) {
+                      if (accepted) {
+                        MyDialog.toast('和棋成立', iconType: IconType.success);
+                      } else {
+                        MyDialog.toast('对方拒绝和棋', iconType: IconType.error);
+                      }
+                    });
+                  },
+                ),
+                // 认输
+                IconButton(
+                  icon: const Icon(Icons.flag),
+                  tooltip: '认输',
+                  onPressed: () {
+                    gamer.resign();
+                    MyDialog.toast('已认输', iconType: IconType.info);
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.airplay),
                   tooltip: context.l10n.editCode,
@@ -215,6 +252,43 @@ class _GameBoardState extends State<GameBoard> {
                   }
                   gamer.newGame();
                 });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.undo),
+              title: const Text('悔棋'),
+              onTap: () {
+                Navigator.pop(context);
+                gamer.requestRetract().then((accepted) {
+                  if (accepted) {
+                    MyDialog.toast('悔棋成功', iconType: IconType.success);
+                  } else {
+                    MyDialog.toast('悔棋被拒绝', iconType: IconType.error);
+                  }
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.pan_tool),
+              title: const Text('求和'),
+              onTap: () {
+                Navigator.pop(context);
+                gamer.offerDraw().then((accepted) {
+                  if (accepted) {
+                    MyDialog.toast('和棋成立', iconType: IconType.success);
+                  } else {
+                    MyDialog.toast('对方拒绝和棋', iconType: IconType.error);
+                  }
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.flag),
+              title: const Text('认输'),
+              onTap: () {
+                Navigator.pop(context);
+                gamer.resign();
+                MyDialog.toast('已认输', iconType: IconType.info);
               },
             ),
             ListTile(

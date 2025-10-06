@@ -6,6 +6,8 @@ import 'package:engine/engine.dart';
 
 import '../global.dart';
 import '../models/game_event.dart';
+import '../utils/ai_strategy.dart';
+import '../utils/game_event_handler.dart';
 
 import 'player_driver.dart';
 
@@ -49,11 +51,12 @@ class DriverRobot extends PlayerDriver {
     return requestMove?.future;
   }
 
-  void getMoveFromEngine() {
+  void getMoveFromEngine() async {
+    int level = player.manager.setting.engineLevel;
     if (engine.inited) {
       engine
         ..position(player.manager.fenStr)
-        ..go(depth: 10).then((move) {
+        ..go(depth: level).then((move) {
           completeMove(PlayerAction(move: move));
         });
     } else {
@@ -62,23 +65,32 @@ class DriverRobot extends PlayerDriver {
   }
 
   Future<void> getMove() async {
-    logger.info('thinking');
-    int team = player.team == 'r' ? 0 : 1;
-    List<String> moves = await getAbleMoves(player.manager.fen, team);
-    if (moves.isEmpty) {
+    try {
+      logger.info('thinking');
+      int team = player.team == 'r' ? 0 : 1;
+      
+      // 使用性能优化器获取可能的移动
+      List<String> moves = await GameErrorRecovery.withRetry(
+        () async => await getAbleMoves(player.manager.fen, team),
+        'getAbleMoves',
+      );
+      
+      if (moves.isEmpty) {
+        completeMove(PlayerAction(type: PlayerActionType.rstGiveUp));
+        return;
+      }
+      
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+  // 使用AI策略选择最佳移动，传递难度参数
+  int level = player.manager.setting.engineLevel;
+  String bestMove = AIStrategy.getBestMove(player.manager.fen, team, moves, level: level);
+  completeMove(PlayerAction(move: bestMove));
+    } catch (e, stackTrace) {
+      GameEventHandler.handleError('Error in getMove', stackTrace: stackTrace);
       completeMove(PlayerAction(type: PlayerActionType.rstGiveUp));
-      return;
     }
-    //print(moves);
-    await Future.delayed(const Duration(milliseconds: 100));
-    Map<String, int> moveGroups =
-        await checkMoves(player.manager.fen, team, moves);
-    //print(moveGroups);
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    String move = await pickMove(moveGroups);
-    //print(move);
-    completeMove(PlayerAction(move: move));
+  // 已使用 AI 或 引擎返回结果，后续旧逻辑已移除
   }
 
   /// 获取可以走的着法
@@ -380,7 +392,7 @@ class DriverRobot extends PlayerDriver {
 
   @override
   Future<bool> tryRetract() {
-    // TODO: implement tryRetract
-    throw UnimplementedError();
+    // 针对机器人，默认自动同意本地悔棋请求
+    return Future.value(true);
   }
 }

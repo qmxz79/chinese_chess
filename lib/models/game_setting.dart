@@ -13,13 +13,13 @@ class GameSetting {
   static const cacheKey = 'setting';
 
   EngineInfo info = builtInEngine;
-  int engineLevel = 10;
+  int engineLevel = 3;
   bool sound = true;
   double soundVolume = 1;
 
   GameSetting({
     this.info = builtInEngine,
-    this.engineLevel = 10,
+    this.engineLevel = 3,
     this.sound = true,
     this.soundVolume = 1,
   });
@@ -35,8 +35,8 @@ class GameSetting {
     }
     if (json.containsKey('engine_level')) {
       engineLevel = json['engine_level'];
-      if (engineLevel < 10 || engineLevel > 12) {
-        engineLevel = 10;
+      if (engineLevel < 2 || engineLevel > 6) {
+        engineLevel = 3;
       }
     }
     if (json.containsKey('sound')) {

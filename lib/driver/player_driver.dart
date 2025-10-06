@@ -17,7 +17,10 @@ enum PlayerActionType {
 
 class PlayerAction {
   PlayerAction({this.type = PlayerActionType.rstMove, this.move})
-      : assert(type == PlayerActionType.rstMove && move != null);
+    : assert(
+      (type == PlayerActionType.rstMove && move != null) ||
+        (type != PlayerActionType.rstMove),
+    );
 
   final PlayerActionType type;
   final String? move;

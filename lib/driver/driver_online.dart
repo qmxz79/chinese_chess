@@ -34,6 +34,7 @@ class DriverOnline extends PlayerDriver {
 
   @override
   Future<bool> tryRetract() {
-    throw UnimplementedError();
+    // 在线模式默认不允许本地直接悔棋，应通过网络协议协商
+    return Future.value(false);
   }
 }

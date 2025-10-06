@@ -37,8 +37,8 @@ class DriverUser extends PlayerDriver {
 
   @override
   Future<bool> tryRetract() {
-    // TODO: implement tryRetract
-    throw UnimplementedError();
+    // 本地用户驱动默认由界面协商（Chess 组件会弹窗），此处直接返回 true 表示请求已发出
+    return Future.value(true);
   }
 
   @override

@@ -7,6 +7,8 @@ import 'package:charset/charset.dart';
 
 import '../driver/player_driver.dart';
 import '../global.dart';
+import '../utils/rule_validator.dart';
+import '../utils/game_event_handler.dart';
 import 'chess_skin.dart';
 import 'game_event.dart';
 import 'game_setting.dart';
@@ -243,8 +245,13 @@ class GameManager {
     manual.initFen(fen);
     rule = ChessRule(manual.currentFen);
 
-    hands[0].title = manual.red;
-    hands[1].title = manual.black;
+    // 彻底重建hands，防止driver失效
+    for (var p in hands) {
+      p.dispose();
+    }
+    hands.clear();
+    hands.add(Player('r', this, title: manual.red));
+    hands.add(Player('b', this, title: manual.black));
     if (hand1 == 1) {
       hands[0].driverType = amyType;
       hands[1].driverType = DriverType.user;
@@ -254,6 +261,8 @@ class GameManager {
     }
 
     curHand = manual.startHand;
+    _currentStep = 0;
+    unEatCount = 0;
 
     add(GameLoadEvent(0));
     next();
@@ -317,6 +326,7 @@ class GameManager {
       logger.info('History no change');
       return;
     }
+    logger.info('loadHistory called: index=$index, manual.currentStep=${manual.currentStep}, _currentStep=$_currentStep');
     _currentStep = index;
     manual.loadHistory(index);
     rule.fen = manual.currentFen;
@@ -361,24 +371,44 @@ class GameManager {
   }
 
   void addMove(PlayerAction action) {
-    logger.info('addmove $action');
-    String? move = action.move;
-    if (action.type != PlayerActionType.rstMove) {
-      if (action.type == PlayerActionType.rstGiveUp) {
-        setResult(
-          curHand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
-          '${player.title}认输',
-        );
+    String? move;
+    try {
+      logger.info('addmove $action');
+      move = action.move;
+      if (action.type != PlayerActionType.rstMove) {
+        if (action.type == PlayerActionType.rstGiveUp) {
+          setResult(
+            curHand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
+            '${player.title}认输',
+          );
+        }
+        if (action.type == PlayerActionType.rstDraw) {
+          setResult(ChessManual.resultFstDraw);
+        }
+        if (action.type == PlayerActionType.rstRetract) {
+          // todo 悔棋
+        }
+        if (action.type == PlayerActionType.rstRqstDraw) {
+          // todo 和棋
+        }
       }
-      if (action.type == PlayerActionType.rstDraw) {
-        setResult(ChessManual.resultFstDraw);
+      
+      if (move != null && move.isNotEmpty) {
+        // 使用 RuleValidator 验证移动
+        if (!RuleValidator.validateMove(rule, move, curHand)) {
+          GameEventHandler.handleInvalidMove(move, '非法移动');
+          return;
+        }
+        
+        // 检查重复局面
+        if (RuleValidator.validateRepeatedPosition(manual.moves.map((m) => m.move).toList(), RuleValidator.MAX_REPEATED_MOVES)) {
+          GameEventHandler.handleGameEnd('重复局面', '达到最大重复次数');
+          setResult(ChessManual.resultFstDraw, '重复局面判和');
+          return;
+        }
       }
-      if (action.type == PlayerActionType.rstRetract) {
-        // todo 悔棋
-      }
-      if (action.type == PlayerActionType.rstRqstDraw) {
-        // todo 和棋
-      }
+    } catch (e, stackTrace) {
+      GameEventHandler.handleError('Error in addMove', stackTrace: stackTrace);
     }
     if (move == null || move.isEmpty) {
       return;
@@ -402,12 +432,19 @@ class GameManager {
 
     final curMove = manual.currentMove!;
 
-    if (curMove.isCheckMate) {
+    // 优先处理吃子且将军的情况
+    if (curMove.isCheckMate && curMove.isEat) {
+      unEatCount = 0;
+      Sound.play(Sound.check);
+      add(GameResultEvent('check'));
+    } else if (curMove.isCheckMate) {
       unEatCount++;
-      Sound.play(Sound.move);
+      Sound.play(Sound.check);
+      add(GameResultEvent('check'));
     } else if (curMove.isEat) {
       unEatCount = 0;
       Sound.play(Sound.capture);
+      add(GameResultEvent('eat'));
     } else {
       unEatCount++;
       Sound.play(Sound.move);
@@ -435,63 +472,102 @@ class GameManager {
 
   /// 棋局结果判断
   bool checkResult(int hand, int curMove) {
-    logger.info('checkResult');
+    try {
+      logger.info('checkResult');
 
-    int repeatRound = manual.repeatRound();
-    if (repeatRound > 2) {
-      // TODO 提醒
-    }
+      int repeatRound = manual.repeatRound();
+      if (repeatRound > RuleValidator.MAX_REPEATED_MOVES - 1) {
+        GameEventHandler.handleGameEnd('重复着法', '即将达到最大重复次数');
+      }
 
-    // 判断和棋
-    if (unEatCount >= 120) {
-      setResult(ChessManual.resultFstDraw, '60回合无吃子判和');
-      return false;
-    }
+      // 判断和棋
+      if (unEatCount >= RuleValidator.MAX_MOVES_WITHOUT_CAPTURE) {
+        GameEventHandler.handleGameEnd('和棋', '达到最大无吃子着数');
+        setResult(ChessManual.resultFstDraw, '60回合无吃子判和');
+        return false;
+      }
 
-    //isCheckMate = rule.isCheck(hand);
-    final moveStep = manual.currentMove!;
-    logger.info('是否将军 ${moveStep.isCheckMate}');
+      // 检查长将（先打印最近窗口的走子和吃子信息以便调试）
+      try {
+        final allMoves = manual.moves.map((m) => m.move).toList();
+        int start = (allMoves.length - 6) < 0 ? 0 : allMoves.length - 6;
+        final window = allMoves.sublist(start);
+        final windowInfo = manual.moves
+            .sublist(start)
+            .map((m) => '${m.move}${m.isEat ? '(eat)' : ''}')
+            .toList();
+        logger.info('Perpetual-check debug: windowMoves=$window');
+        logger.info('Perpetual-check debug: windowInfo=$windowInfo');
+        logger.info('Perpetual-check debug: unEatCount=$unEatCount');
 
-    // 判断输赢，包括能否应将，长将
-    if (moveStep.isCheckMate) {
-      //manual.moves[curMove].isCheckMate = isCheckMate;
-
-      if (rule.canParryKill(hand)) {
-        // 长将
-        if (repeatRound > 3) {
+        if (RuleValidator.validatePerpetualCheck(
+          allMoves,
+          rule,
+          unEatCount: unEatCount,
+        )) {
+          GameEventHandler.handleGameEnd('长将', '连续将军超过限制');
+          logger.info('Perpetual-check: triggered, windowInfo=$windowInfo');
           setResult(
             hand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
-            '不变招长将作负',
+            '长将判负',
           );
           return false;
         }
-        Sound.play(Sound.check);
-        add(GameResultEvent('checkMate'));
-      } else {
-        setResult(
-          hand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
-          '绝杀',
-        );
-        return false;
+      } catch (e, st) {
+        logger.warning('Perpetual-check debug failed', e, st);
       }
-    } else {
-      if (rule.isTrapped(hand)) {
-        setResult(
-          hand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
-          '困毙',
-        );
-        return false;
-      } else if (moveStep.isEat) {
-        add(GameResultEvent('eat'));
-      }
-    }
 
-    // TODO 判断长捉，一捉一将，一将一杀
-    if (repeatRound > 3) {
-      setResult(ChessManual.resultFstDraw, '不变招判和');
+      // 判断输赢，包括能否应将，长将
+      final moveStep = manual.currentMove!;
+      logger.info('是否将军 ${moveStep.isCheckMate}');
+
+      if (moveStep.isCheckMate) {
+        // mover delivered a check to opponent
+        int opponent = hand == 0 ? 1 : 0;
+        bool opponentCanParry = rule.canParryKill(opponent);
+        if (!opponentCanParry) {
+          // 绝杀：对方无法应将，直接判胜
+          GameEventHandler.handleGameEnd('绝杀', '对方无应将方法');
+          // 显示大 '绝杀' 图标
+          add(GameResultEvent('kill'));
+          // 播放胜利音效
+          Sound.play(Sound.win);
+          // 延迟弹出胜负提示，确保动画和音效先展示
+          Future.delayed(const Duration(seconds: 1), () {
+            setResult(
+              hand == 0 ? ChessManual.resultFstWin : ChessManual.resultFstLoose,
+              '绝杀',
+            );
+          });
+          return false;
+        } else {
+          // 对方有应将方法：显示大 '将' 字并播放警告音，等待对方应将
+          Sound.play(Sound.check);
+          add(GameResultEvent('check'));
+        }
+      } else {
+        if (rule.isTrapped(hand)) {
+          setResult(
+            hand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
+            '困毙',
+          );
+          return false;
+        } else if (moveStep.isEat) {
+          add(GameResultEvent('eat'));
+        }
+      }
+
+      // TODO 判断长捉，一捉一将，一将一杀
+      if (repeatRound > 3) {
+        setResult(ChessManual.resultFstDraw, '不变招判和');
+        return false;
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      GameEventHandler.handleError('Error in checkResult', stackTrace: stackTrace);
       return false;
     }
-    return true;
   }
 
   List<String> getSteps() {
@@ -541,4 +617,131 @@ class GameManager {
   Player get player => hands[curHand];
 
   Player getPlayer(int hand) => hands[hand];
+
+  /// 是否可以悔棋（至少有一步可以回退）
+  bool canRetract() {
+    return manual.moveCount > 0 && _currentStep > 0;
+  }
+
+  /// 直接回退一步（本地/人机模式使用）
+  /// 注意：此方法不会与对手交互同意流程，适用于本地双方或自动接受的机器人
+  void retract() {
+    // 同步内部当前索引与 manual，确保基于最新位置退一步
+    _currentStep = manual.currentStep;
+    if (!canRetract()) return;
+
+    // 停止引擎计算，准备回滚
+    try {
+      engine.stop();
+    } catch (_) {}
+
+    // 以 _currentStep 为准，向后退一步
+    int target = _currentStep - 1;
+    logger.info('retract called: synced _currentStep=$_currentStep, manual.currentStep=${manual.currentStep}, manual.moveCount=${manual.moveCount}, computed target=$target');
+    if (target < 0) target = 0;
+
+    // 使用已有的历史加载逻辑完成回滚
+    manual.loadHistory(target);
+    rule.fen = manual.currentFen;
+    _currentStep = target;
+    // 回退后行棋方为 (currentStep+1)%2
+    curHand = (_currentStep + 1) % 2;
+
+    // 重新计算未吃子计数
+    _recomputeUnEatCount();
+
+    // 通知界面和玩家
+    add(GamePlayerEvent(curHand));
+    add(GameLoadEvent(_currentStep + 1));
+    if (manual.currentMove != null) {
+      add(GameStepEvent(manual.currentMove!.toChineseString()));
+    } else {
+      add(GameStepEvent(''));
+    }
+
+    // 让引擎重新定位到新的局面
+    try {
+      engine.position(fenStr);
+    } catch (_) {}
+  }
+
+  void _recomputeUnEatCount() {
+    int cnt = 0;
+    for (int i = manual.moves.length - 1; i >= 0; i--) {
+      if (manual.moves[i].isEat) {
+        break;
+      }
+      cnt++;
+    }
+    unEatCount = cnt;
+  }
+
+  /// 发起悔棋请求：向对手驱动询问是否同意
+  /// 若对方同意则执行实际回退并返回 true，否则返回 false
+  Future<bool> requestRetract() async {
+    if (!canRetract()) return Future.value(false);
+
+    int opponent = curHand == 0 ? 1 : 0;
+
+    // 同步当前步数，计算上一步是谁
+    _currentStep = manual.currentStep;
+    int lastMover = _currentStep - 1;
+    if (lastMover < 0) lastMover = 0;
+
+    try {
+      logger.info('requestRetract: curHand=$curHand, opponent=$opponent, manual.currentStep=${manual.currentStep}, lastMover=$lastMover');
+      // 询问对手驱动是否同意悔棋
+      bool agree = await hands[opponent].driver.tryRetract();
+      if (agree) {
+        // 判断是否需要撤回两步：如果最后一步是机器人走的，且另一方是用户，则撤两步以回到用户行棋前的局面
+        bool lastWasRobot = hands[lastMover].isRobot;
+        bool otherIsUser = hands[1 - lastMover].isUser;
+
+        // 首次回退
+        retract();
+
+        if (lastWasRobot && otherIsUser && canRetract()) {
+          logger.info('requestRetract: lastWasRobot && otherIsUser -> performing second retract');
+          retract();
+        }
+
+        add(GameResultEvent('retract accepted'));
+        return true;
+      } else {
+        add(GameResultEvent('retract rejected'));
+        return false;
+      }
+    } catch (e, st) {
+      GameEventHandler.handleError('Error in requestRetract', stackTrace: st);
+      return false;
+    }
+  }
+
+  /// 发起求和请求：向对手驱动询问是否接受和棋
+  /// 若对方同意则设为和棋并返回 true，否则返回 false
+  Future<bool> offerDraw() async {
+    int opponent = curHand == 0 ? 1 : 0;
+    try {
+      // 询问对手驱动是否同意和棋
+      bool accept = await hands[opponent].driver.tryDraw();
+      if (accept) {
+        setResult(ChessManual.resultFstDraw, '双方和棋');
+        add(GameResultEvent('draw accepted'));
+        return true;
+      } else {
+        add(GameResultEvent('draw rejected'));
+        return false;
+      }
+    } catch (e, st) {
+      GameEventHandler.handleError('Error in offerDraw', stackTrace: st);
+      return false;
+    }
+  }
+
+  /// 本方认输（直接结束对局，记录结果）
+  void resign() {
+    // 本方认输：当前行棋方放弃
+    setResult(curHand == 0 ? ChessManual.resultFstLoose : ChessManual.resultFstWin,
+        '${player.title}认输');
+  }
 }
