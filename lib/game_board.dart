@@ -33,6 +33,7 @@ class _GameBoardState extends State<GameBoard> {
   PlayMode? mode;
   bool _onlineConnected = false;
   String _onlineRoom = '';
+  bool _isReconnecting = false;
 
   @override
   void initState() {
@@ -90,25 +91,30 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   /// Recreate and init online drivers to reconnect
-  void _reconnectOnline() {
+  Future<void> _reconnectOnline() async {
+    if (_isReconnecting) return;
+    setState(() => _isReconnecting = true);
     try {
       for (var i = 0; i < gamer.hands.length; i++) {
         final p = gamer.hands[i];
         if (p.driverType == DriverType.online) {
-          // reassigning the same driverType will dispose the old driver and
-          // create & init a fresh DriverOnline instance.
-          p.driverType = DriverType.online;
+          // Use Player.recreateDriver to safely recreate and init
+          await p.recreateDriver(DriverType.online);
         }
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已触发重连')),
+        const SnackBar(content: Text('重连完成')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('重连失败：${e.toString()}')),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isReconnecting = false);
+      }
     }
   }
 
@@ -224,17 +230,29 @@ class _GameBoardState extends State<GameBoard> {
                   ),
                 ),
                 // Reconnect / Disconnect buttons for online drivers
-                IconButton(
-                  icon: Icon(_onlineConnected ? Icons.link_off : Icons.link),
-                  tooltip: _onlineConnected ? '断开' : '重连',
-                  onPressed: () {
-                    if (_onlineConnected) {
-                      _disconnectOnline();
-                    } else {
-                      _reconnectOnline();
-                    }
-                  },
-                ),
+                if (_isReconnecting)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: Icon(_onlineConnected ? Icons.link_off : Icons.link),
+                    tooltip: _onlineConnected ? '断开' : '重连',
+                    onPressed: _isReconnecting
+                        ? null
+                        : () {
+                            if (_onlineConnected) {
+                              _disconnectOnline();
+                            } else {
+                              _reconnectOnline();
+                            }
+                          },
+                  ),
                 IconButton(
                   icon: const Icon(Icons.copy),
                   tooltip: context.l10n.copyCode,

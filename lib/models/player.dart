@@ -59,4 +59,18 @@ class Player {
   void dispose() {
     _driver?.dispose();
   }
+
+  /// Dispose and recreate driver, awaiting init. Useful for reconnect operations.
+  Future<void> recreateDriver(DriverType type) async {
+    _driverType = type;
+    if (_driver != null) {
+      try {
+        await _driver!.dispose();
+      } catch (_) {}
+    }
+    _driver = PlayerDriver.createDriver(this, _driverType);
+    try {
+      await _driver!.init();
+    } catch (_) {}
+  }
 }
