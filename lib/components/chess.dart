@@ -15,6 +15,7 @@ import '../models/game_event.dart';
 import '../models/sound.dart';
 import '../models/game_manager.dart';
 import '../driver/player_driver.dart';
+import '../driver/driver_online.dart';
 import '../widgets/game_wrapper.dart';
 
 class Chess extends StatefulWidget {
@@ -106,6 +107,46 @@ class ChessState extends State<Chess> {
         } else if (resultText == 'rejected') {
           toast('悔棋被拒绝', null, 2);
         }
+        break;
+      case 'incoming_request:retract':
+        // 对方请求悔棋，弹窗询问并通过 DriverOnline 发送应答
+        confirm(
+          context.l10n.requestRetract,
+          context.l10n.agreeRetract,
+          context.l10n.disagreeRetract,
+        ).then((bool? isAgree) {
+          // 找到本地在线驱动并回应
+          for (var p in gamer.hands) {
+            if (p.driver is DriverOnline) {
+              (p.driver as DriverOnline).respondRequest('retract', isAgree == true);
+              break;
+            }
+          }
+          if (isAgree == true) {
+            toast('已同意对方悔棋', null, 2);
+          } else {
+            toast('已拒绝对方悔棋', null, 2);
+          }
+        });
+        break;
+      case 'incoming_request:draw':
+        confirm(
+          context.l10n.requestDraw,
+          context.l10n.agreeToDraw,
+          context.l10n.letMeSee,
+        ).then((bool? isAgree) {
+          for (var p in gamer.hands) {
+            if (p.driver is DriverOnline) {
+              (p.driver as DriverOnline).respondRequest('draw', isAgree == true);
+              break;
+            }
+          }
+          if (isAgree == true) {
+            toast('已同意和棋', null, 2);
+          } else {
+            toast('已拒绝和棋', null, 2);
+          }
+        });
         break;
       case ChessManual.resultFstLoose:
         alertResult(resultText ?? context.l10n.redLoose);

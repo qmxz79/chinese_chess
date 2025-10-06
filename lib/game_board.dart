@@ -15,6 +15,7 @@ import 'components/game_bottom_bar.dart';
 import 'models/play_mode.dart';
 import 'widgets/game_wrapper.dart';
 import 'models/game_manager.dart';
+import 'models/game_event.dart';
 import 'components/play.dart';
 import 'components/edit_fen.dart';
 
@@ -29,11 +30,37 @@ class GameBoard extends StatefulWidget {
 class _GameBoardState extends State<GameBoard> {
   GameManager gamer = GameManager.instance;
   PlayMode? mode;
+  String _onlineStatus = '';
 
   @override
   void initState() {
     super.initState();
     Future.delayed(Duration.zero).then((value) => gamer.init());
+    gamer.on<GameResultEvent>(_onGameResult);
+  }
+
+  @override
+  void dispose() {
+    gamer.off<GameResultEvent>(_onGameResult);
+    super.dispose();
+  }
+
+  void _onGameResult(GameEvent e) {
+    final data = e.data as String?;
+    if (data == null) return;
+    if (data.startsWith('online:connected:')) {
+      final parts = data.split(':');
+      if (parts.length >= 3) {
+        final id = parts.sublist(2).join(':');
+        setState(() {
+          _onlineStatus = '在线($id)';
+        });
+      }
+    } else if (data == 'online:disconnected') {
+      setState(() {
+        _onlineStatus = '';
+      });
+    }
   }
 
   Widget selectMode() {
@@ -124,6 +151,17 @@ class _GameBoardState extends State<GameBoard> {
                     gamer.flip();
                   },
                 ),
+                // show online status if present
+                if (_onlineStatus.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Center(
+                      child: Text(
+                        _onlineStatus,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.copy),
                   tooltip: context.l10n.copyCode,
@@ -210,7 +248,7 @@ class _GameBoardState extends State<GameBoard> {
             );
           })*/
               ],
-      ),
+    ),
       drawer: Drawer(
         semanticLabel: context.l10n.menu,
         child: ListView(

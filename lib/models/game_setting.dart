@@ -16,6 +16,7 @@ class GameSetting {
   int engineLevel = 3;
   bool sound = true;
   double soundVolume = 1;
+  String onlineServer = 'ws://127.0.0.1:8080';
 
   GameSetting({
     this.info = builtInEngine,
@@ -45,6 +46,9 @@ class GameSetting {
     if (json.containsKey('sound_volume')) {
       soundVolume = json['sound_volume'];
     }
+    if (json.containsKey('online_server')) {
+      onlineServer = json['online_server'] ?? onlineServer;
+    }
   }
 
   static Future<GameSetting> getInstance() async {
@@ -73,6 +77,7 @@ class GameSetting {
         'engine_info': info.name,
         'engine_level': engineLevel,
         'sound': sound,
-        'sound_volume': soundVolume,
+    'sound_volume': soundVolume,
+    'online_server': onlineServer,
       });
 }

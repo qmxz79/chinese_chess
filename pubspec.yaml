@@ -39,6 +39,7 @@ dependencies:
   #     path: soundpool_windux
       
   audioplayers: ^5.2.0
+  web_socket_channel: ^2.2.0
   #assets_audio_player: ^3.0.4+3
   ffi:
   # win32: 2.6.1

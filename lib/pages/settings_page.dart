@@ -127,6 +127,25 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('在线服务器', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: setting.onlineServer,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'ws://127.0.0.1:8080',
+                ),
+                onChanged: (v) => setting.onlineServer = v,
+                onFieldSubmitted: (v) => _safeSave(),
+              ),
+              const SizedBox(height: 8),
+              Text('当前: ${setting.onlineServer}'),
+            ],
+          ),
         ],
       ),
     );
