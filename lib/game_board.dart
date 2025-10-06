@@ -30,7 +30,8 @@ class GameBoard extends StatefulWidget {
 class _GameBoardState extends State<GameBoard> {
   GameManager gamer = GameManager.instance;
   PlayMode? mode;
-  String _onlineStatus = '';
+  bool _onlineConnected = false;
+  String _onlineRoom = '';
 
   @override
   void initState() {
@@ -53,12 +54,14 @@ class _GameBoardState extends State<GameBoard> {
       if (parts.length >= 3) {
         final id = parts.sublist(2).join(':');
         setState(() {
-          _onlineStatus = '在线($id)';
+          _onlineConnected = true;
+          _onlineRoom = id;
         });
       }
     } else if (data == 'online:disconnected') {
       setState(() {
-        _onlineStatus = '';
+        _onlineConnected = false;
+        _onlineRoom = '';
       });
     }
   }
@@ -151,17 +154,29 @@ class _GameBoardState extends State<GameBoard> {
                     gamer.flip();
                   },
                 ),
-                // show online status if present
-                if (_onlineStatus.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Center(
-                      child: Text(
-                        _onlineStatus,
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                // show online status icon if any
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Tooltip(
+                    message: _onlineConnected
+                        ? '已连接，房间: ${_onlineRoom.isNotEmpty ? _onlineRoom : '—'}'
+                        : '未连接',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.circle,
+                          size: 12,
+                          color: _onlineConnected ? Colors.greenAccent : Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _onlineConnected ? '在线' : '离线',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
                     ),
                   ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.copy),
                   tooltip: context.l10n.copyCode,

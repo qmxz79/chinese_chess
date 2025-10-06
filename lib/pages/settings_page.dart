@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/io.dart';
+import 'dart:async';
+import 'dart:io';
 import '../models/game_setting.dart';
 import '../global.dart';
 
@@ -143,6 +146,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 onFieldSubmitted: (v) => _safeSave(),
               ),
               const SizedBox(height: 8),
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _testConnection();
+                    },
+                    child: const Text('测试连接'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => _safeSave(),
+                    child: const Text('保存'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Text('当前: ${setting.onlineServer}'),
             ],
           ),
@@ -164,6 +183,50 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('保存失败：${e.toString()}')),
       );
+    }
+  }
+
+  Future<void> _testConnection() async {
+    final uri = setting.onlineServer.trim();
+    if (uri.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先填写在线服务器地址')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('正在测试连接...')),
+    );
+
+    IOWebSocketChannel? channel;
+    try {
+      // Try to open a short-lived connection with timeout using WebSocket.connect
+      final ws = await WebSocket.connect(uri).timeout(const Duration(seconds: 5));
+      channel = IOWebSocketChannel(ws);
+
+      // If connected, consider it successful. Close immediately.
+      await channel.sink.close();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('连接成功')),
+      );
+    } on TimeoutException catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('连接超时（5秒）')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('连接失败：${e.toString()}')),
+      );
+    } finally {
+      try {
+        await channel?.sink.close();
+      } catch (_) {}
     }
   }
 }
