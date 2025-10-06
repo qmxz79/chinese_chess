@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:universal_html/html.dart' as html;
 
 import 'global.dart';
+import 'driver/player_driver.dart';
 import 'setting.dart';
 import 'components/game_bottom_bar.dart';
 import 'models/play_mode.dart';
@@ -63,6 +64,51 @@ class _GameBoardState extends State<GameBoard> {
         _onlineConnected = false;
         _onlineRoom = '';
       });
+    }
+  }
+
+  /// Disconnect all online drivers (close their connections)
+  void _disconnectOnline() {
+    try {
+      for (var p in gamer.hands) {
+        if (p.driverType == DriverType.online) {
+          try {
+            p.driver.dispose();
+          } catch (_) {}
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已断开在线连接')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('断开失败：${e.toString()}')),
+      );
+    }
+  }
+
+  /// Recreate and init online drivers to reconnect
+  void _reconnectOnline() {
+    try {
+      for (var i = 0; i < gamer.hands.length; i++) {
+        final p = gamer.hands[i];
+        if (p.driverType == DriverType.online) {
+          // reassigning the same driverType will dispose the old driver and
+          // create & init a fresh DriverOnline instance.
+          p.driverType = DriverType.online;
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已触发重连')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('重连失败：${e.toString()}')),
+      );
     }
   }
 
@@ -176,6 +222,18 @@ class _GameBoardState extends State<GameBoard> {
                       ],
                     ),
                   ),
+                ),
+                // Reconnect / Disconnect buttons for online drivers
+                IconButton(
+                  icon: Icon(_onlineConnected ? Icons.link_off : Icons.link),
+                  tooltip: _onlineConnected ? '断开' : '重连',
+                  onPressed: () {
+                    if (_onlineConnected) {
+                      _disconnectOnline();
+                    } else {
+                      _reconnectOnline();
+                    }
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy),
